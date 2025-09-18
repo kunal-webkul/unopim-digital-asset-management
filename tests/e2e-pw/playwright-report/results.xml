@@ -1,0 +1,6 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="3.7306310000009835">
+<testsuite name="unopim-dam/installation-check.spec.js" timestamp="2025-09-15T13:38:18.597Z" hostname="chromium" tests="1" failures="0" skipped="0" time="2.275" errors="0">
+<testcase name="UnoPim WooCommerce Credential Test cases › Upload a file to Root Directory" classname="unopim-dam/installation-check.spec.js" time="2.275">
+</testcase>
+</testsuite>
+</testsuites>
