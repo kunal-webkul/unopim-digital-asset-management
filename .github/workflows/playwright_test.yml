@@ -1,13 +1,11 @@
-name: Playwright Tests
+name: UnoPim + DAM CI
 
-on: [push, pull_request]
-
-permissions:
-  contents: read
+on:
+  push:
+  pull_request:
 
 jobs:
-  playwright_tests:
-    name: Playwright End-to-end UI Test
+  test:
     runs-on: ubuntu-latest
 
     services:
@@ -17,90 +15,79 @@ jobs:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: unopim
         ports:
-          - 3306
+          - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
 
     steps:
-      - name: Checkout repository (DAM)
+      - name: Checkout UnoPim
         uses: actions/checkout@v4
+        with:
+          repository: unopim/unopim
+          path: unopim
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
-          extensions: curl, fileinfo, gd, intl, mbstring, openssl, pdo, pdo_mysql, tokenizer, zip
-          ini-values: error_reporting=E_ALL
+          extensions: mbstring, bcmath, pdo_mysql, fileinfo, curl, intl
           tools: composer:v2
 
-      - name: Install UnoPim core and point to DAM
+      - name: Install UnoPim
+        working-directory: unopim
         run: |
-          # Create a clean UnoPim core project in a subfolder
-          composer create-project unopim/unopim unopim-core --no-interaction --no-progress
-
-          cd unopim-core
-
-          # Register your DAM repo as a path repository
-          # If your DAM package is at root, use "../"
-          # If Docker checks out with files in root with src folder, you may need "../src"
-          composer config repositories.dam '{"type": "path", "url": "../"}'
-
-          # Update composer to use DAM
-          composer update unopim/dam --no-interaction --no-progress
-
-      - name: Setup environment for UnoPim + DAM
-        run: |
-          cd unopim-core
+          composer install
           cp .env.example .env
-          sed -i "s|^\(APP_ENV=\s*\).*$|\1testing|" .env
-          sed -i "s|^\(DB_HOST=\s*\).*$|\1127.0.0.1|" .env
-          sed -i "s|^\(DB_PORT=\s*\).*$|\1${{ job.services.mysql.ports['3306'] }}|" .env
-          sed -i "s|^\(DB_DATABASE=\s*\).*$|\1unopim|" .env
-          sed -i "s|^\(DB_USERNAME=\s*\).*$|\1root|" .env
-          sed -i "s|^\(DB_PASSWORD=\s*\).*$|\1root|" .env
-          cat .env
+          sed -i "s|^APP_ENV=.*|APP_ENV=testing|" .env
+          sed -i "s|^DB_HOST=.*|DB_HOST=127.0.0.1|" .env
+          sed -i "s|^DB_PORT=.*|DB_PORT=3306|" .env
+          sed -i "s|^DB_DATABASE=.*|DB_DATABASE=unopim|" .env
+          sed -i "s|^DB_USERNAME=.*|DB_USERNAME=root|" .env
+          sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=root|" .env
+          php artisan key:generate
 
-      - name: Run UnoPim Installer + DAM
+      - name: Install DAM (via Composer)
+        working-directory: unopim
         run: |
-          cd unopim-core
-          php artisan unopim:install --skip-env-check --skip-admin-creation
-          php artisan unopim-dam:install --skip-env-check
-          php artisan migrate:fresh --seed
-          php artisan serve --host=0.0.0.0 --port=8000 &
+          composer require unopim/dam
+          php artisan dam-package:install
+          php artisan optimize:clear
 
-      - name: Wait for UnoPim to start
-        run: npx wait-on http://localhost:8000
+      - name: Run migrations + seeders
+        working-directory: unopim
+        run: |
+          php artisan migrate --force
+          php artisan db:seed --class=Webkul\\DAM\\Database\\Seeders\\DirectoryTableSeeder
+
+      - name: Start UnoPim server
+        working-directory: unopim
+        run: php artisan serve --host=0.0.0.0 --port=8000 &
+      
+      - name: Wait for UnoPim
+        run: npx wait-on http://127.0.0.1:8000
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: Install Playwright dependencies
+      - name: Install Playwright & deps
+        working-directory: unopim/tests/e2e-pw
         run: |
-          cd tests/e2e-pw
-          npm install
+          npm ci
           npx playwright install-deps chromium
           npx playwright install chromium
 
       - name: Run Playwright tests
-        run: |
-          cd tests/e2e-pw
-          npx playwright test --reporter=list
+        working-directory: unopim/tests/e2e-pw
+        run: npx playwright test --reporter=html
 
-      - name: Upload Playwright report
+      - name: Upload Playwright Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: tests/e2e-pw/playwright-report
-
-      - name: Upload Laravel logs if failed
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: laravel-log
-          path: unopim-core/storage/logs/laravel.log
+          path: unopim/tests/e2e-pw/playwright-report
