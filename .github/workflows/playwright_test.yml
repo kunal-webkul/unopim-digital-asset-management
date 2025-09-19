@@ -66,13 +66,6 @@ jobs:
           php artisan optimize:clear
           php artisan vendor:publish --provider="Webkul\\DAM\\Providers\\DAMServiceProvider"
 
-      - name: Seed DAM database if seeder exists
-        working-directory: unopim
-        run: |
-          php -r "echo class_exists('Webkul\\DAM\\Database\\Seeders\\DirectoryTableSeeder') ? 'true' : 'false';" | grep true && \
-          php artisan db:seed --class=Webkul\\DAM\\Database\\Seeders\\DirectoryTableSeeder || \
-          echo "DirectoryTableSeeder not found, skipping seeding."
-
       - name: Start UnoPim server
         working-directory: unopim
         run: php artisan serve --host=0.0.0.0 --port=8000 &
