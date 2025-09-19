@@ -1,4 +1,4 @@
-name: UnoPim + DAM Tests
+name: UnoPim + DAM Playwright Tests
 
 on: [push, pull_request]
 
@@ -70,6 +70,13 @@ EOT
           composer require unopim/dam --no-interaction
           php artisan migrate --path=packages/DAM/database/migrations
 
+      - name: Start UnoPim server
+        working-directory: packages/Webkul/unopim
+        run: php artisan serve --host=0.0.0.0 --port=8000 &
+      
+      - name: Wait for UnoPim to be ready
+        run: npx wait-on http://127.0.0.1:8000
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -87,3 +94,10 @@ EOT
       - name: Run Playwright tests
         working-directory: packages/Webkul/unopim
         run: npx playwright test --reporter=html
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: packages/Webkul/unopim/playwright-report
