@@ -29,6 +29,12 @@ jobs:
           repository: unopim/unopim
           path: unopim
 
+      - name: Checkout DAM (this repo)
+        uses: actions/checkout@v4
+        with:
+          repository: kunal-webkul/unopim-digital-asset-management
+          path: unopim-dam
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -48,24 +54,23 @@ jobs:
           sed -i "s|^DB_USERNAME=.*|DB_USERNAME=root|" .env
           sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=root|" .env
           php artisan key:generate
-
-      - name: Install DAM (via Composer)
-        working-directory: unopim
-        run: |
-          composer require unopim/dam
-          php artisan dam-package:install
-          php artisan optimize:clear
-
-      - name: Run migrations + seeders
-        working-directory: unopim
-        run: |
           php artisan migrate --force
+
+      - name: Install DAM manually
+        working-directory: unopim
+        run: |
+          mkdir -p packages/Webkul
+          cp -r ../unopim-dam/src packages/Webkul/DAM
+          composer config repositories.dam '{"type": "path", "url": "packages/Webkul/DAM"}'
+          composer dump-autoload
+          php artisan optimize:clear
+          php artisan vendor:publish --provider="Webkul\\DAM\\Providers\\DAMServiceProvider"
           php artisan db:seed --class=Webkul\\DAM\\Database\\Seeders\\DirectoryTableSeeder
 
       - name: Start UnoPim server
         working-directory: unopim
         run: php artisan serve --host=0.0.0.0 --port=8000 &
-      
+
       - name: Wait for UnoPim
         run: npx wait-on http://127.0.0.1:8000
 
@@ -74,7 +79,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install Playwright & deps
+      - name: Install Playwright dependencies
         working-directory: unopim/tests/e2e-pw
         run: |
           npm ci
@@ -85,9 +90,16 @@ jobs:
         working-directory: unopim/tests/e2e-pw
         run: npx playwright test --reporter=html
 
-      - name: Upload Playwright Report
+      - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: unopim/tests/e2e-pw/playwright-report
+
+      - name: Upload Laravel logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laravel-logs
+          path: unopim/storage/logs/laravel.log
