@@ -14,6 +14,7 @@ jobs:
       matrix:
         operating-systems: [ubuntu-latest]
         php-versions: ['8.2']
+        with-dam: [false, true]   # <---- run both cases
 
     services:
       mysql:
@@ -58,8 +59,12 @@ jobs:
       - name: Running UnoPim Installer
         run: |
           php artisan unopim:install --skip-env-check --skip-admin-creation
-          php artisan unopim-dam:install --skip-env-check
-          php artisan migrate --force
+
+          # Install DAM only if matrix.with-dam == true
+          if [ "${{ matrix.with-dam }}" = "true" ]; then
+            php artisan unopim-dam:install --skip-env-check
+          fi
+
           php artisan migrate:fresh --seed
           php artisan serve --host=0.0.0.0 --port=8000 &
 
@@ -87,5 +92,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.with-dam }}
           path: tests/e2e-pw/playwright-report
