@@ -25,7 +25,7 @@ jobs:
           --health-retries=5
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (DAM)
         uses: actions/checkout@v4
 
       - name: Setup PHP
@@ -36,14 +36,22 @@ jobs:
           ini-values: error_reporting=E_ALL
           tools: composer:v2
 
-      - name: Install UnoPim & link DAM
+      - name: Install UnoPim core and point to DAM
         run: |
+          # Create a clean UnoPim core project in a subfolder
           composer create-project unopim/unopim unopim-core --no-interaction --no-progress
-          cd unopim-core
-          composer config repositories.dam '{"type": "path", "url": "../"}'
-          composer require unopim/dam:@dev --no-interaction --no-progress
 
-      - name: Setup environment
+          cd unopim-core
+
+          # Register your DAM repo as a path repository
+          # If your DAM package is at root, use "../"
+          # If Docker checks out with files in root with src folder, you may need "../src"
+          composer config repositories.dam '{"type": "path", "url": "../"}'
+
+          # Update composer to use DAM
+          composer update unopim/dam --no-interaction --no-progress
+
+      - name: Setup environment for UnoPim + DAM
         run: |
           cd unopim-core
           cp .env.example .env
@@ -55,7 +63,7 @@ jobs:
           sed -i "s|^\(DB_PASSWORD=\s*\).*$|\1root|" .env
           cat .env
 
-      - name: Run UnoPim Installer
+      - name: Run UnoPim Installer + DAM
         run: |
           cd unopim-core
           php artisan unopim:install --skip-env-check --skip-admin-creation
@@ -89,3 +97,10 @@ jobs:
         with:
           name: playwright-report
           path: tests/e2e-pw/playwright-report
+
+      - name: Upload Laravel logs if failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laravel-log
+          path: unopim-core/storage/logs/laravel.log
