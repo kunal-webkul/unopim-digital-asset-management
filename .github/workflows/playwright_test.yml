@@ -1,56 +1,71 @@
-name: UnoPim CI Pipeline
+name: UnoPim + DAM Tests
 
 on: [push, pull_request]
 
 jobs:
-  unopim-tests:
+  test:
     runs-on: ubuntu-latest
 
     services:
       mysql:
         image: mysql:8.0
+        ports:
+          - 3306:3306
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: unopim
-        ports:
-          - 3306:3306
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=3
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, intl, bcmath, pdo_mysql
+          extensions: mbstring, bcmath, pdo, pdo_mysql, curl, intl, gd
           coverage: none
 
       - name: Install Composer dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+        working-directory: packages/Webkul/unopim
+        run: composer install --no-interaction --prefer-dist --no-scripts
 
       - name: Create .env file
+        working-directory: packages/Webkul/unopim
         run: |
-          cp .env.example .env || touch .env
-          sed -i "s|^APP_ENV=.*|APP_ENV=testing|" .env
-          sed -i "s|^DB_HOST=.*|DB_HOST=127.0.0.1|" .env
-          sed -i "s|^DB_PORT=.*|DB_PORT=3306|" .env
-          sed -i "s|^DB_DATABASE=.*|DB_DATABASE=unopim|" .env
-          sed -i "s|^DB_USERNAME=.*|DB_USERNAME=root|" .env
-          sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=root|" .env
+          cat <<EOT > .env
+APP_NAME=UnoPim
+APP_ENV=testing
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://127.0.0.1:8000
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=unopim
+DB_USERNAME=root
+DB_PASSWORD=root
+
+CACHE_DRIVER=file
+SESSION_DRIVER=file
+QUEUE_CONNECTION=sync
+EOT
           cat .env
 
       - name: Generate app key & migrate DB
+        working-directory: packages/Webkul/unopim
         run: |
           php artisan key:generate
           php artisan migrate:fresh --seed
 
       - name: Install DAM module
+        working-directory: packages/Webkul/unopim
         run: |
           composer require unopim/dam --no-interaction
           php artisan migrate --path=packages/DAM/database/migrations
@@ -60,13 +75,15 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install NPM dependencies
-        run: npm install
-
-      - name: Install Playwright
+      - name: Install Playwright dependencies
         run: |
           npx playwright install-deps chromium
           npx playwright install chromium
 
+      - name: Install npm dependencies
+        working-directory: packages/Webkul/unopim
+        run: npm install
+
       - name: Run Playwright tests
+        working-directory: packages/Webkul/unopim
         run: npx playwright test --reporter=html
