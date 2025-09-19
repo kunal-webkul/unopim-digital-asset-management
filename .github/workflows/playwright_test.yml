@@ -8,12 +8,7 @@ permissions:
 jobs:
   playwright_tests:
     name: Playwright End-to-end UI Test
-    runs-on: ${{ matrix.operating-systems }}
-
-    strategy:
-      matrix:
-        operating-systems: [ubuntu-latest]
-        php-versions: ['8.2']
+    runs-on: ubuntu-latest
 
     services:
       mysql:
@@ -24,7 +19,7 @@ jobs:
         ports:
           - 3306
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -36,19 +31,19 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
+          php-version: 8.2
           extensions: curl, fileinfo, gd, intl, mbstring, openssl, pdo, pdo_mysql, tokenizer, zip
           ini-values: error_reporting=E_ALL
           tools: composer:v2
 
-      - name: Install UnoPim and DAM
+      - name: Install UnoPim & DAM
         run: |
-          composer create-project unopim/unopim .
-          composer require unopim/unopim-dam
+          composer require unopim/unopim --no-interaction --no-progress
+          composer require unopim/dam --no-interaction --no-progress
 
-      - name: Setting Environment
+      - name: Setup environment
         run: |
-          cp .env.example .env
+          cp .env.example .env || touch .env
           sed -i "s|^\(APP_ENV=\s*\).*$|\1testing|" .env
           sed -i "s|^\(DB_HOST=\s*\).*$|\1127.0.0.1|" .env
           sed -i "s|^\(DB_PORT=\s*\).*$|\1${{ job.services.mysql.ports['3306'] }}|" .env
@@ -57,17 +52,16 @@ jobs:
           sed -i "s|^\(DB_PASSWORD=\s*\).*$|\1root|" .env
           cat .env
 
-      - name: Run Migrations and Seed
+      - name: Run UnoPim Installer
         run: |
           php artisan unopim:install --skip-env-check --skip-admin-creation
-          php artisan unopim-dam:install --skip-env-check
           php artisan migrate:fresh --seed
           php artisan serve --host=0.0.0.0 --port=8000 &
 
       - name: Wait for UnoPim to start
         run: npx wait-on http://localhost:8000
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
