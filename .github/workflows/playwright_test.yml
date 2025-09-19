@@ -41,8 +41,10 @@ jobs:
           ini-values: error_reporting=E_ALL
           tools: composer:v2
 
-      - name: Running Composer Install
-        run: composer install
+      - name: Install UnoPim and DAM
+        run: |
+          composer create-project unopim/unopim .
+          composer require unopim/unopim-dam
 
       - name: Setting Environment
         run: |
@@ -55,18 +57,11 @@ jobs:
           sed -i "s|^\(DB_PASSWORD=\s*\).*$|\1root|" .env
           cat .env
 
-      - name: Running UnoPim Installer + DAM
+      - name: Run Migrations and Seed
         run: |
-          # Install UnoPim
           php artisan unopim:install --skip-env-check --skip-admin-creation
-          
-          # Install DAM module
           php artisan unopim-dam:install --skip-env-check
-          
-          # Run migrations and seed database
           php artisan migrate:fresh --seed
-          
-          # Start application
           php artisan serve --host=0.0.0.0 --port=8000 &
 
       - name: Wait for UnoPim to start
