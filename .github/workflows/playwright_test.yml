@@ -81,7 +81,7 @@ jobs:
       - name: Install Playwright dependencies
         working-directory: unopim/tests/e2e-pw
         run: |
-          npm ci
+          npm install
           npx playwright install-deps chromium
           npx playwright install chromium
 
