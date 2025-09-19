@@ -1,3 +1,5 @@
+// config.js
+
 const { defineConfig, devices } = require('@playwright/test');
 const path = require('path');
 
