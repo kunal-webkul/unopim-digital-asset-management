@@ -86,8 +86,7 @@ EOL
       - name: Start Laravel server in background
         run: |
           php artisan serve --host=127.0.0.1 --port=8000 > server.log 2>&1 &
-          SERVER_PID=$!
-          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          echo $! > server.pid
 
       - name: Wait for Laravel admin login page
         run: |
@@ -106,8 +105,9 @@ EOL
       - name: Stop Laravel server
         if: always()
         run: |
-          if [ -n "$SERVER_PID" ]; then
-            kill $SERVER_PID 2>/dev/null || true
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) 2>/dev/null || true
+            rm -f server.pid
           fi
 
       - name: Upload Playwright report
