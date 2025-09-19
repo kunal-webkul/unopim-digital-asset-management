@@ -46,25 +46,24 @@ jobs:
           if [ -f .env.example ]; then
             cp .env.example .env
           else
-            cat > .env << 'EOL'
-APP_NAME=UnoPim
-APP_ENV=testing
-APP_KEY=
-APP_DEBUG=true
-APP_URL=http://127.0.0.1:8000
-
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=unopim
-DB_USERNAME=root
-DB_PASSWORD=root
-
-CACHE_DRIVER=file
-QUEUE_CONNECTION=sync
-SESSION_DRIVER=file
-SESSION_LIFETIME=120
-EOL
+            # Create .env file using echo commands instead of heredoc
+            echo "APP_NAME=UnoPim" > .env
+            echo "APP_ENV=testing" >> .env
+            echo "APP_KEY=" >> .env
+            echo "APP_DEBUG=true" >> .env
+            echo "APP_URL=http://127.0.0.1:8000" >> .env
+            echo "" >> .env
+            echo "DB_CONNECTION=mysql" >> .env
+            echo "DB_HOST=127.0.0.1" >> .env
+            echo "DB_PORT=3306" >> .env
+            echo "DB_DATABASE=unopim" >> .env
+            echo "DB_USERNAME=root" >> .env
+            echo "DB_PASSWORD=root" >> .env
+            echo "" >> .env
+            echo "CACHE_DRIVER=file" >> .env
+            echo "QUEUE_CONNECTION=sync" >> .env
+            echo "SESSION_DRIVER=file" >> .env
+            echo "SESSION_LIFETIME=120" >> .env
           fi
 
       - name: Install PHP dependencies
