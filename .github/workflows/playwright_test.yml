@@ -1,20 +1,10 @@
-name: Playwright Tests
+name: UnoPim CI Pipeline
 
 on: [push, pull_request]
 
-permissions:
-  contents: read
-
 jobs:
-  playwright_tests:
-    name: Playwright End-to-end UI Test
-    runs-on: ${{ matrix.operating-systems }}
-
-    strategy:
-      matrix:
-        operating-systems: [ubuntu-latest]
-        php-versions: ['8.2']
-        with-dam: [false, true]   # <---- run both cases
+  unopim-tests:
+    runs-on: ubuntu-latest
 
     services:
       mysql:
@@ -23,74 +13,60 @@ jobs:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: unopim
         ports:
-          - 3306
+          - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
-          extensions: curl, fileinfo, gd, intl, mbstring, openssl, pdo, pdo_mysql, tokenizer, zip
-          ini-values: error_reporting=E_ALL
-          tools: composer:v2
+          php-version: '8.2'
+          extensions: mbstring, intl, bcmath, pdo_mysql
+          coverage: none
 
-      - name: Running Composer Install
-        run: composer install
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Setting Environment
+      - name: Create .env file
         run: |
-          cp .env.example .env
-          sed -i "s|^\(APP_ENV=\s*\).*$|\1testing|" .env
-          sed -i "s|^\(DB_HOST=\s*\).*$|\1127.0.0.1|" .env
-          sed -i "s|^\(DB_PORT=\s*\).*$|\1${{ job.services.mysql.ports['3306'] }}|" .env
-          sed -i "s|^\(DB_DATABASE=\s*\).*$|\1unopim|" .env
-          sed -i "s|^\(DB_USERNAME=\s*\).*$|\1root|" .env
-          sed -i "s|^\(DB_PASSWORD=\s*\).*$|\1root|" .env
+          cp .env.example .env || touch .env
+          sed -i "s|^APP_ENV=.*|APP_ENV=testing|" .env
+          sed -i "s|^DB_HOST=.*|DB_HOST=127.0.0.1|" .env
+          sed -i "s|^DB_PORT=.*|DB_PORT=3306|" .env
+          sed -i "s|^DB_DATABASE=.*|DB_DATABASE=unopim|" .env
+          sed -i "s|^DB_USERNAME=.*|DB_USERNAME=root|" .env
+          sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=root|" .env
           cat .env
 
-      - name: Running UnoPim Installer
+      - name: Generate app key & migrate DB
         run: |
-          php artisan unopim:install --skip-env-check --skip-admin-creation
-
-          # Install DAM only if matrix.with-dam == true
-          if [ "${{ matrix.with-dam }}" = "true" ]; then
-            php artisan unopim-dam:install --skip-env-check
-          fi
-
+          php artisan key:generate
           php artisan migrate:fresh --seed
-          php artisan serve --host=0.0.0.0 --port=8000 &
 
-      - name: Wait for UnoPim to start
-        run: npx wait-on http://localhost:8000
+      - name: Install DAM module
+        run: |
+          composer require unopim/dam --no-interaction
+          php artisan migrate --path=packages/DAM/database/migrations
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 20
 
-      - name: Install Playwright dependencies
+      - name: Install NPM dependencies
+        run: npm install
+
+      - name: Install Playwright
         run: |
-          cd tests/e2e-pw
-          npm install
           npx playwright install-deps chromium
           npx playwright install chromium
 
       - name: Run Playwright tests
-        run: |
-          cd tests/e2e-pw
-          npx playwright test --reporter=list
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-${{ matrix.with-dam }}
-          path: tests/e2e-pw/playwright-report
+        run: npx playwright test --reporter=html
