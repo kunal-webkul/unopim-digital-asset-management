@@ -1,20 +1,20 @@
 // utils/login.js
 
 export async function login(page) {
-  // Go to admin login page and wait for network to be idle
+  // Go to admin login page
   await page.goto('http://127.0.0.1:8000/admin/login', { waitUntil: 'networkidle' });
 
-  // Wait for email input to be visible, then fill
+  // Wait for email input to be visible and fill
   const emailInput = page.getByRole('textbox', { name: 'Email Address' });
   await emailInput.waitFor({ state: 'visible', timeout: 90000 });
   await emailInput.fill('admin@example.com');
 
-  // Wait for password input to be visible, then fill
+  // Wait for password input to be visible and fill
   const passwordInput = page.getByRole('textbox', { name: 'Password' });
   await passwordInput.waitFor({ state: 'visible', timeout: 90000 });
   await passwordInput.fill('admin123');
 
-  // Wait for sign-in button to be visible, then click
+  // Wait for sign-in button and click
   const signInButton = page.getByRole('button', { name: 'Sign In' });
   await signInButton.waitFor({ state: 'visible', timeout: 90000 });
   await signInButton.click();
