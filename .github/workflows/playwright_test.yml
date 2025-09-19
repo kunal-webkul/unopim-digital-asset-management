@@ -28,6 +28,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check working directory
+        run: |
+          pwd
+          ls -la
+          echo "Current directory contents:"
+          ls -la
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -46,7 +53,6 @@ jobs:
           if [ -f .env.example ]; then
             cp .env.example .env
           else
-            # Create .env file using echo commands instead of heredoc
             echo "APP_NAME=UnoPim" > .env
             echo "APP_ENV=testing" >> .env
             echo "APP_KEY=" >> .env
@@ -65,9 +71,22 @@ jobs:
             echo "SESSION_DRIVER=file" >> .env
             echo "SESSION_LIFETIME=120" >> .env
           fi
+          cat .env
 
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Check for artisan file
+        run: |
+          echo "Looking for artisan file..."
+          find . -name "artisan" -type f
+          if [ ! -f artisan ]; then
+            echo "ERROR: artisan file not found in current directory!"
+            echo "Current directory: $(pwd)"
+            echo "Directory contents:"
+            ls -la
+            exit 1
+          fi
 
       - name: Generate key and migrate
         run: |
