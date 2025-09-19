@@ -1,6 +1,10 @@
 name: DAM Module Playwright Tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 permissions:
   contents: read
@@ -27,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: master
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -95,7 +101,6 @@ EOF
           mkdir -p packages/Webkul/DAM
           
           # Copy DAM module files (adjust source path as needed)
-          # If DAM module is in a different location, update the source path
           if [ -d "dam-module/" ]; then
             cp -r dam-module/* packages/Webkul/DAM/
           elif [ -d "packages/Webkul/DAM" ]; then
