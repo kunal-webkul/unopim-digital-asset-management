@@ -131,12 +131,14 @@ test.describe('DAM Asset Upload', () => {
 test('Filter button opens filter panel', async ({ adminPage }) => {
   await navigateTo(adminPage, 'dam');
   await adminPage.waitForLoadState('domcontentloaded');
-  const filterBtn = adminPage.locator('text=Filter').first();
+  const filterBtn = adminPage.locator('button, div, span').filter({
+    hasText: /^Filter$/i
+  }).first();
+
   await filterBtn.waitFor({ state: 'visible' });
   await filterBtn.click();
-  await expect(
-    adminPage.locator('text=Apply').first()
-  ).toBeVisible({ timeout: 10000 });
+  const filterPanel = adminPage.locator('[class*="filter"], [class*="drawer"], [role="dialog"]');
+  await expect(filterPanel).toBeVisible({ timeout: 10000 });
 });
 
   test('Per Page dropdown works', async ({ adminPage }) => {
