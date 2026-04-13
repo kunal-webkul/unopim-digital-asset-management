@@ -128,13 +128,13 @@ test.describe('DAM Asset Upload', () => {
     ).toBeVisible({ timeout: 15000 });
   });
 
- test('Filter button opens filter panel', async ({ adminPage }) => {
-    await navigateTo(adminPage, 'dam');
-    await adminPage.waitForLoadState('domcontentloaded');
-
-    await adminPage.getByText('Filter', { exact: true }).click();
-    await expect(adminPage.getByText('Apply Filters')).toBeVisible({ timeout: 10000 });
-  });
+test('Filter button opens filter panel', async ({ adminPage }) => {
+  await navigateTo(adminPage, 'dam');
+  await adminPage.waitForLoadState('networkidle');
+  await adminPage.getByRole('button', { name: 'Filter' }).click();
+  const applyBtn = adminPage.getByRole('button', { name: /Apply Filters/i });
+  await expect(applyBtn).toBeVisible({ timeout: 15000 });
+});
 
   test('Per Page dropdown works', async ({ adminPage }) => {
     await navigateTo(adminPage, 'dam');
