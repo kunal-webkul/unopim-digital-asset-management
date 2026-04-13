@@ -128,22 +128,20 @@ test.describe('DAM Asset Upload', () => {
     ).toBeVisible({ timeout: 15000 });
   });
 
- test('Filter button opens filter panel', async ({ adminPage }) => {
+test('Filter button opens filter panel', async ({ adminPage }) => {
   await navigateTo(adminPage, 'dam');
   await adminPage.waitForLoadState('domcontentloaded');
-  const filterBtn = adminPage.getByRole('button', { name: /filter/i });
+  const filterBtn = adminPage.locator('text=Filter').first();
   await filterBtn.waitFor({ state: 'visible' });
   await filterBtn.click();
   await expect(
-  adminPage.getByRole('button', { name: /apply/i })
+    adminPage.locator('text=Apply').first()
   ).toBeVisible({ timeout: 10000 });
 });
 
   test('Per Page dropdown works', async ({ adminPage }) => {
     await navigateTo(adminPage, 'dam');
     await adminPage.waitForLoadState('domcontentloaded');
-
-    // Find and click Per Page button
     const perPageBtn = adminPage.locator('button').filter({ hasText: /^\d+/ }).first();
     await perPageBtn.click();
     await adminPage.waitForTimeout(300);
